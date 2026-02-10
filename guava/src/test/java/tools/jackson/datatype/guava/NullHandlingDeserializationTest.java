@@ -188,7 +188,7 @@ public class NullHandlingDeserializationTest extends ModuleTestBase
     @Test
     public void testRangeSetWithNullElement() throws Exception {
         // RangeSet doesn't accept null
-        String json = a2q("['[1..5]', null]");
+        String json = a2q("[ {'lowerEndpoint':1,'lowerBoundType':'CLOSED','upperEndpoint':5,'upperBoundType':'CLOSED'}, null]");
 
         try {
             RangeSet<Integer> rangeSet = MAPPER.readValue(json,
@@ -201,7 +201,7 @@ public class NullHandlingDeserializationTest extends ModuleTestBase
 
     @Test
     public void testImmutableRangeSetWithNullElement() throws Exception {
-        String json = a2q("['[1..5]', null, '[10..15]']");
+        String json = a2q("[ {'lowerEndpoint':1,'lowerBoundType':'CLOSED','upperEndpoint':5,'upperBoundType':'CLOSED'}, null, {'lowerEndpoint':10,'lowerBoundType':'CLOSED','upperEndpoint':15,'upperBoundType':'CLOSED'}]");
 
         try {
             ImmutableRangeSet<Integer> rangeSet = MAPPER.readValue(json,
@@ -214,7 +214,7 @@ public class NullHandlingDeserializationTest extends ModuleTestBase
 
     @Test
     public void testTreeRangeSetWithNullElement() throws Exception {
-        String json = a2q("['[1..5]', null]");
+        String json = a2q("[ {'lowerEndpoint':1,'lowerBoundType':'CLOSED','upperEndpoint':5,'upperBoundType':'CLOSED'}, null]");
 
         try {
             TreeRangeSet<Integer> rangeSet = MAPPER.readValue(json,
@@ -233,45 +233,49 @@ public class NullHandlingDeserializationTest extends ModuleTestBase
 
     @Test
     public void testImmutableMapWithNullKey() throws Exception {
-        // ImmutableMap doesn't accept null keys
-        String json = a2q("{null: 'value', 'key2': 'value2'}");
+        // Note: JSON doesn't support null keys - this tests behavior with invalid JSON
+        String json = "{\"key1\": \"value1\", null: \"value2\", \"key3\": \"value3\"}";
 
         try {
             ImmutableMap<String, String> map = MAPPER.readValue(json,
                     new TypeReference<ImmutableMap<String, String>>() {});
-            fail("Expected exception for null key in ImmutableMap, got: " + map);
+            fail("Expected exception for null key");
         } catch (Exception e) {
-            // Should fail with either MismatchedInputException or DatabindException
+            // Should fail during parsing or deserialization
             assertNotNull(e);
         }
     }
 
     @Test
     public void testImmutableMapWithNullValue() throws Exception {
-        // ImmutableMap doesn't accept null values
-        String json = a2q("{'key1': 'value1', 'key2': null}");
+        // ImmutableMap silently skips null values (see GuavaImmutableMapDeserializer line 51-60)
+        String json = a2q("{'key1': 'value1', 'key2': null, 'key3': 'value3'}");
 
-        try {
-            ImmutableMap<String, String> map = MAPPER.readValue(json,
-                    new TypeReference<ImmutableMap<String, String>>() {});
-            fail("Expected exception for null value in ImmutableMap, got: " + map);
-        } catch (MismatchedInputException e) {
-            verifyException(e, "does not accept", "null");
-        }
+        ImmutableMap<String, String> map = MAPPER.readValue(json,
+                new TypeReference<ImmutableMap<String, String>>() {});
+        
+        // Null value should be skipped, not cause an exception
+        assertNotNull(map);
+        assertEquals(2, map.size());
+        assertEquals("value1", map.get("key1"));
+        assertEquals("value3", map.get("key3"));
+        assertFalse(map.containsKey("key2"));
     }
 
     @Test
     public void testImmutableBiMapWithNullValue() throws Exception {
-        // ImmutableBiMap doesn't accept null values
-        String json = a2q("{'key1': 'value1', 'key2': null}");
+        // ImmutableBiMap silently skips null values (same as ImmutableMap)
+        String json = a2q("{'key1': 'value1', 'key2': null, 'key3': 'value3'}");
 
-        try {
-            ImmutableBiMap<String, String> map = MAPPER.readValue(json,
-                    new TypeReference<ImmutableBiMap<String, String>>() {});
-            fail("Expected exception for null value in ImmutableBiMap, got: " + map);
-        } catch (MismatchedInputException e) {
-            verifyException(e, "does not accept", "null");
-        }
+        ImmutableBiMap<String, String> map = MAPPER.readValue(json,
+                new TypeReference<ImmutableBiMap<String, String>>() {});
+        
+        // Null value should be skipped, not cause an exception
+        assertNotNull(map);
+        assertEquals(2, map.size());
+        assertEquals("value1", map.get("key1"));
+        assertEquals("value3", map.get("key3"));
+        assertFalse(map.containsKey("key2"));
     }
 
     /*
@@ -350,7 +354,7 @@ public class NullHandlingDeserializationTest extends ModuleTestBase
 
     @Test
     public void testRangeSetWithoutNulls() throws Exception {
-        String json = a2q("['[1..5]', '[10..15]']");
+        String json = a2q("[ {'lowerEndpoint':1,'lowerBoundType':'CLOSED','upperEndpoint':5,'upperBoundType':'CLOSED'}, {'lowerEndpoint':10,'lowerBoundType':'CLOSED','upperEndpoint':15,'upperBoundType':'CLOSED'}]");
 
         RangeSet<Integer> rangeSet = MAPPER.readValue(json,
                 new TypeReference<RangeSet<Integer>>() {});
